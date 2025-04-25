@@ -1,5 +1,18 @@
 local mgr
 
+-- Functie om te controleren of er voldoende spelers zijn
+local function checkPlayerCount()
+    -- Stel dat er minimaal 2 spelers nodig zijn om het menu te openen
+    if #mgr.grid.participants >= 2 then
+        -- Zet de status om het menu te openen
+        mgr.state = mgr.STATES.GRID
+    else
+        -- Als er nog niet genoeg spelers zijn, toon je iets anders of verberg je het menu
+        mgr.state = mgr.STATES.WAITING
+    end
+end
+
+-- Functie om de header van de interface te tekenen
 local function drawHeader(ctxt)
     mgr = BJIScenario.get(BJIScenario.TYPES.RACE_MULTI)
 
@@ -77,6 +90,7 @@ local function drawHeader(ctxt)
     end
 end
 
+-- Functie om de race-informatie te tekenen
 local function drawRace(ctxt)
     local wpPerLap = mgr.race.raceData.wpPerLap
     if mgr.isRaceOrCountdownStarted() and not mgr.isRaceFinished() then
@@ -216,13 +230,11 @@ local function drawRace(ctxt)
         end)
         table.insert(cells, function()
             if pos == 1 then
-                -- first player
                 LineBuilder()
                     :text(RaceDelay(lb.time or 0))
                     :build()
             else
                 local diffVal = math.abs(lb.diff or 0)
-                -- next players
                 local line = LineBuilder()
                 if playerCurrentWP < firstPlayerCurrentWp then
                     line:text(
@@ -247,84 +259,10 @@ local function drawRace(ctxt)
     cols:build()
 end
 
+-- Functie om de grid-informatie te tekenen
 local function drawGrid(ctxt)
-    LineBuilder()
-        :text(svar(BJILang.get("races.play.timeout"),
-            { delay = PrettyDelay(math.floor((mgr.grid.timeout - ctxt.now) / 1000)) }))
-        :build()
+    checkPlayerCount() -- Controleer of het menu geopend kan worden
 
-    if not tincludes(mgr.grid.ready, BJIContext.User.playerID, true) then
-        local participates = tincludes(mgr.grid.participants, BJIContext.User.playerID, true)
-        local line = LineBuilder()
-            :btnIconToggle({
-                id = "joinRace",
-                icon = participates and ICONS.exit_to_app or ICONS.videogame_asset,
-                state = not participates,
-                onClick = function()
-                    BJITx.scenario.RaceMultiUpdate(mgr.CLIENT_EVENTS.JOIN)
-                    if participates and BJIVeh.isCurrentVehicleOwn() then
-                        BJIVeh.deleteAllOwnVehicles()
-                    end
-                end,
-                big = true,
-            })
-        if not participates then
-            line:text(svar(BJILang.get("races.play.placesRemaining"),
-                { places = math.max(#mgr.grid.startPositions - #mgr.grid.participants, 0) }))
-        elseif BJIVeh.isCurrentVehicleOwn() then
-            line:btnIcon({
-                id = "raceReady",
-                icon = ICONS.done,
-                style = BTN_PRESETS.SUCCESS,
-                disabled = ctxt.now < mgr.grid.readyTime,
-                onClick = function()
-                    BJITx.scenario.RaceMultiUpdate(mgr.CLIENT_EVENTS.READY)
-                end,
-                big = true,
-            })
-                :text(ctxt.now < mgr.grid.readyTime and
-                    svar(BJILang.get("races.play.canMarkReadyIn"),
-                        { delay = PrettyDelay(math.floor((mgr.grid.readyTime - ctxt.now) / 1000)) }) or
-                    "")
-        end
-        line:build()
-    else
-        LineBuilder()
-            :text(BJILang.get("races.play.waitingForOtherPlayers"))
-            :build()
-    end
-
-    if #mgr.grid.participants > 0 then
-        LineBuilder()
-            :text(svar("{1}:", { BJILang.get("races.play.players") }))
-            :build()
-        Indent(2)
-        for _, playerID in ipairs(mgr.grid.participants) do
-            local isReady = tincludes(mgr.grid.ready, playerID, true)
-            LineBuilder()
-                :text(BJIContext.Players[playerID].playerName,
-                    isReady and TEXT_COLORS.SUCCESS or TEXT_COLORS.DEFAULT)
-                :text(svar("({readyStatus})",
-                        {
-                            readyStatus = isReady and BJILang.get("races.play.playerReady") or
-                                BJILang.get("races.play.playerNotReady")
-                        }),
-                    isReady and TEXT_COLORS.SUCCESS or TEXT_COLORS.DEFAULT)
-                :build()
-        end
-        Indent(-2)
-    end
-end
-
-local function drawBody(ctxt)
     if mgr.state == mgr.STATES.GRID then
-        drawGrid(ctxt)
-    elseif mgr.state >= mgr.STATES.RACE then
-        drawRace(ctxt)
-    end
-end
-
-return {
-    header = drawHeader,
-    body = drawBody,
-}
+        LineBuilder()
+            :text(svar(BJILang
