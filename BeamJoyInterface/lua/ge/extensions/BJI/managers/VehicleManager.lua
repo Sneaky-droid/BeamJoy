@@ -688,7 +688,7 @@ local function isConfigCustom(config)
     end
 
     config = config or veh.partConfig
-    return not config:find(".+%.pc$")
+    return not config:find("%.pc$")
 end
 
 local function isModelBlacklisted(model)
@@ -706,8 +706,7 @@ local function getFullConfig(config)
         return nil
     end
 
-    -- Changes for 0.35 handling of new vehicle part selector.https://github.com/my-name-is-samael/BeamJoy/issues/91#issuecomment-2782916143
-    config = MPHelpers.simplifyVehConfig(config) or MPHelpers.simplifyVehConfig(veh.partConfig)
+    config = config or veh.partConfig
     if isConfigCustom(config) then
         local fn = load(svar("return {1}", { config:gsub("'", "") }))
         if type(fn) == "function" then
@@ -970,6 +969,9 @@ local function replaceOrSpawnVehicle(model, config, posrot)
     else
         core_vehicles.replaceVehicle(model, opts)
     end
+    if BJICam.getCamera() == BJICam.CAMERAS.FREE then
+        BJICam.toggleFreeCam()
+    end
 end
 
 -- optionnal config and posrot
@@ -986,6 +988,9 @@ local function spawnNewVehicle(model, config, posrot)
         opts.rot = posrot.rot * quat(0, 0, 1, 0) -- vehicles' forward is inverted
     end
     core_vehicles.spawnNewVehicle(model, opts)
+    if BJICam.getCamera() == BJICam.CAMERAS.FREE then
+        BJICam.toggleFreeCam()
+    end
 end
 
 -- See M.getAllPaintsForModel for paint data
